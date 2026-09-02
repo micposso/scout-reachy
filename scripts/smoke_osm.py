@@ -40,7 +40,7 @@ def main() -> int:
         print("[FAIL] reverse geocode returned nothing")
         failures += 1
     else:
-        print(f"[OK] reverse -> {place.address[:80]}")
+        print(f"[OK] reverse -> {place.address[:80]} (city={place.city or 'unavailable'})")
 
     print("3) nearby(category='tourism')")
     near = client.nearby(*EIFFEL, category="tourism", radius_m=400, limit=8)

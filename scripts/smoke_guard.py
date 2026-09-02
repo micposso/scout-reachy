@@ -30,7 +30,7 @@ EIFFEL = Place(
 def answer(**kw) -> LocationAnswer:
     base = dict(
         sign_text="Tour Eiffel", identified_place="Eiffel Tower",
-        address="Champ de Mars, Paris", lat=48.8584, lon=2.2945,
+        address="Champ de Mars, Paris", city="Paris", lat=48.8584, lon=2.2945,
         osm_id="way/5013364", distance_m=5.0, confidence="high", source="geocode",
         spoken_summary="You're at the Eiffel Tower.",
     )

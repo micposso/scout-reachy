@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from ..data.osm import _haversine_m
+from ..data.osm import Place, _haversine_m
 from .schema import LocationAnswer
 from .tools import ScoutContext
 
@@ -23,17 +23,17 @@ logger = logging.getLogger(__name__)
 _COORD_TOLERANCE_M = 50.0
 
 
-def _backed_by_seen(answer: LocationAnswer, ctx: ScoutContext) -> bool:
-    """True if the answer refers to a place a tool surfaced this turn."""
+def backing_place(answer: LocationAnswer, ctx: ScoutContext) -> Place | None:
+    """Return the map place backing this answer, if one surfaced this turn."""
     if answer.osm_id and answer.osm_id in ctx.seen:
-        return True
+        return ctx.seen[answer.osm_id]
     # Fall back to a coordinate match, in case the model dropped the token but
     # copied real coordinates from a result.
     if answer.lat is not None and answer.lon is not None:
         for place in ctx.seen.values():
             if _haversine_m(answer.lat, answer.lon, place.lat, place.lon) <= _COORD_TOLERANCE_M:
-                return True
-    return False
+                return place
+    return None
 
 
 def guard_answer(answer: LocationAnswer, ctx: ScoutContext) -> LocationAnswer:
@@ -41,7 +41,7 @@ def guard_answer(answer: LocationAnswer, ctx: ScoutContext) -> LocationAnswer:
     maps result, otherwise a downgraded 'unconfirmed' version."""
     if answer.source == "unknown":
         return answer  # nothing located, nothing to confirm
-    if _backed_by_seen(answer, ctx):
+    if backing_place(answer, ctx) is not None:
         logger.info("Location confirmed against maps result: %s", answer.osm_id)
         return answer
 
@@ -64,6 +64,7 @@ def guard_answer(answer: LocationAnswer, ctx: ScoutContext) -> LocationAnswer:
     return answer.model_copy(update={
         "identified_place": None,
         "address": None,
+        "city": None,
         "lat": None,
         "lon": None,
         "osm_id": None,

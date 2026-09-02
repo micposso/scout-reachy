@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -81,6 +81,20 @@ class Settings(BaseSettings):
     # ---------- Vision tuning ----------
     # Cap the frame width sent to the model (downsampled) to bound tokens/latency.
     vision_max_width: int = Field(default=1024)
+
+    # ---------- Persistent place memory (local SQLite) ----------
+    memory_enabled: bool = Field(default=True)
+    memory_db_path: str = Field(default=".app_data/scout_memory.db")
+    # A map result counts as a visit only when it is this close to the laptop's
+    # own location. This prevents a photographed poster from becoming a visit.
+    memory_visit_radius_m: float = Field(default=500.0)
+    memory_recall_radius_m: float = Field(default=500.0)
+
+    @field_validator("device_lat", "device_lon", mode="before")
+    @classmethod
+    def _blank_coordinate_is_none(cls, value):
+        """Allow the documented blank .env values for optional coordinates."""
+        return None if isinstance(value, str) and not value.strip() else value
 
 
 @lru_cache(maxsize=1)

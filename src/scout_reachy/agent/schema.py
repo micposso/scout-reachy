@@ -26,6 +26,12 @@ class LocationAnswer(BaseModel):
     address: Optional[str] = Field(
         description="Full address of the place, copied from a maps tool result; null if none."
     )
+    city: Optional[str] = Field(
+        description=(
+            "City/locality copied from the explicit city value in a maps tool "
+            "result; null when unavailable or unconfirmed."
+        )
+    )
     lat: Optional[float] = Field(
         description="Latitude, copied EXACTLY from the backing maps tool result; null if unconfirmed."
     )

@@ -34,6 +34,7 @@ exits non-zero on failure. Run one directly:
 ```powershell
 .venv\Scripts\python.exe scripts\smoke_encode.py     # PNG encoder round-trip (offline)
 .venv\Scripts\python.exe scripts\smoke_guard.py      # guard confirms/downgrades (offline)
+.venv\Scripts\python.exe scripts\smoke_memory.py     # persistent visit memory (offline)
 .venv\Scripts\python.exe scripts\smoke_osm.py        # live OSM geocode/reverse/nearby (network)
 .venv\Scripts\python.exe scripts\smoke_location.py   # device location resolves (.env)
 .venv\Scripts\python.exe scripts\smoke_vision.py     # camera streams frames (robot + daemon)
@@ -62,6 +63,11 @@ trigger (Enter or wake word)          app.py: _wait_for_trigger
 
 Device location (`location.py`) is resolved per look and injected into the
 tool context — the model never sends its own "near me" coordinates.
+
+Confirmed initial answers close to the device location are persisted by
+`data/memory.py` in a local SQLite visit history. `recall_nearby` and
+`recall_place` expose history to the agent, but recalled entries are never added
+to `ScoutContext.seen`; memory therefore cannot satisfy the live-location guard.
 
 ### The anti-hallucination invariant (the core design)
 

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 
 from anthropic import beta_tool
 
+from ..config import settings
+from ..data.memory import PlaceMemory, summarize_memories
 from ..data.osm import OSMClient, OSMError, Place, summarize_places
 
 
@@ -25,6 +27,7 @@ class ScoutContext:
 
     osm: OSMClient
     device: tuple[float, float] | None = None
+    memory: PlaceMemory | None = None
     seen: dict[str, Place] = field(default_factory=dict)
 
     def record(self, places: list[Place]) -> None:
@@ -106,4 +109,35 @@ def nearby(category: str) -> str:
     return summarize_places(places, origin=ctx.device)
 
 
-TOOLS = [geocode, reverse_geocode, nearby]
+@beta_tool
+def recall_nearby() -> str:
+    """Recall places the robot has previously visited near its current device
+    location. This is historical context only, not live map confirmation. Use a
+    maps tool before claiming that the robot is currently at a remembered place.
+    """
+    ctx = _c()
+    if ctx.memory is None:
+        return "Persistent place memory is disabled."
+    if ctx.device is None:
+        return "The robot's location is unknown, so nearby memories can't be searched."
+    places = ctx.memory.nearby(
+        *ctx.device, radius_m=settings.memory_recall_radius_m
+    )
+    return summarize_memories(places, origin=ctx.device)
+
+
+@beta_tool
+def recall_place(query: str) -> str:
+    """Search the robot's local visit history by place name, address, or sign
+    text. Results are memories, not proof of the current location.
+
+    Args:
+        query: Place, address, or sign text to find in visit memory.
+    """
+    ctx = _c()
+    if ctx.memory is None:
+        return "Persistent place memory is disabled."
+    return summarize_memories(ctx.memory.search(query), origin=ctx.device)
+
+
+TOOLS = [geocode, reverse_geocode, nearby, recall_nearby, recall_place]

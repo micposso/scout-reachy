@@ -16,7 +16,8 @@ Claude reads the sign and calls OSM tools) → **maps tools** (`agent/tools.py` 
 `data/osm.py`: Nominatim `geocode`/`reverse_geocode`, Overpass `nearby`) →
 **guard** (`agent/guard.py`: drops any location the maps didn't return) →
 structured `LocationAnswer` (`agent/schema.py`) → **TTS** (`speech/tts.py`) +
-sparse gestures (`robot/expressions.py`) → optional spoken follow-ups. Device
+sparse gestures (`robot/expressions.py`) → **local visit memory**
+(`data/memory.py`, SQLite) → optional spoken follow-ups. Device
 location comes from `location.py` (Windows Geolocator → `.env` manual fallback).
 
 ## Invariants — do not break these
@@ -36,6 +37,10 @@ location comes from `location.py` (Windows Geolocator → `.env` manual fallback
 5. **No compiled image wheels.** BitDefender quarantines OpenCV / Pillow `.pyd` on
    this machine (same reason zeroconf is stubbed). PNG encoding is pure-Python;
    the `winrt` location import is guarded and degrades to the manual fallback.
+6. **Memory is context, not location proof.** Only nearby, map-confirmed initial
+   answers are stored in `.app_data/scout_memory.db`. Recalled places are never
+   added to the guard's per-turn map registry, so a memory cannot validate where
+   the robot is now.
 
 ## Commands
 
@@ -55,13 +60,14 @@ sibling project's `.venv\Lib\site-packages\zeroconf\__init__.py`.
 |---|---|---|
 | `smoke_encode.py`   | nothing (offline)        | PNG encoder round-trips pixels + downsample cap |
 | `smoke_guard.py`    | nothing (offline)        | guard passes confirmed / downgrades invented locations |
+| `smoke_memory.py`   | nothing (offline)        | SQLite visits persist, increment, search, and recall nearby |
 | `smoke_location.py` | `.env` (no robot)        | device location resolves (winrt or fallback) |
 | `smoke_osm.py`      | network (no key)         | geocode / reverse / nearby against live OSM |
 | `smoke_vision.py`   | robot + daemon           | camera streams frames; saves PPM snapshots |
 | `smoke_locate.py`   | Anthropic key + image    | full pipeline; `--ppm shot.ppm --lat .. --lon ..` off-robot |
 
 Recommended first run (no robot, no camera): `smoke_encode` → `smoke_guard` →
-`smoke_osm` → `smoke_location`. Then `smoke_vision` on the robot, feed a saved
+`smoke_memory` → `smoke_osm` → `smoke_location`. Then `smoke_vision` on the robot, feed a saved
 `.app_data/vision/first.ppm` into `smoke_locate --ppm`.
 
 ## Keys (.env, gitignored)
@@ -70,3 +76,14 @@ Recommended first run (no robot, no camera): `smoke_encode` → `smoke_guard` �
 `ELEVENLABS_VOICE_ID`, `OSM_USER_AGENT` (required by Nominatim). Optional:
 `DEVICE_LAT`/`DEVICE_LON`/`DEVICE_ADDRESS` (manual location), `TRIGGER_MODE`,
 `GOOGLE_MAPS_API_KEY` (future backend seam). OSM needs no key.
+
+## Persistent place memory
+
+After the guard confirms an initial location, Scout records it as a visit only
+when the laptop's device location is within `MEMORY_VISIT_RADIUS_M` (500 m by
+default). This avoids treating a photo of a distant landmark or poster as a
+visit. Places, timestamps, counts, and the last observed sign text are kept in a
+local, gitignored SQLite database at `.app_data/scout_memory.db`. The agent can
+use `recall_nearby` and `recall_place` for questions such as "have we been here
+before?". Set `MEMORY_ENABLED=false` to disable it; delete the database to erase
+the history.

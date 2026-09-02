@@ -39,6 +39,7 @@ class Place:
     lon: float
     category: str  # OSM class/type, e.g. "tourism/museum" or "highway/residential"
     osm_id: str  # "{osm_type}/{osm_id}", stable identity for the guard
+    city: str = ""  # explicit locality for concise "what city?" answers
 
     def distance_m(self, lat: float, lon: float) -> float:
         return _haversine_m(self.lat, self.lon, lat, lon)
@@ -169,6 +170,7 @@ class OSMClient:
             places.append(Place(
                 name=name, address=tags.get("addr:street", ""), lat=plat, lon=plon,
                 category=cat, osm_id=f"{el.get('type')}/{el.get('id')}",
+                city=_locality(tags),
             ))
         places.sort(key=lambda p: p.distance_m(lat, lon))
         places = places[:limit]
@@ -200,6 +202,7 @@ class OSMClient:
     @staticmethod
     def _to_place(row: dict) -> Place:
         cls, typ = row.get("class", ""), row.get("type", "")
+        address = row.get("address") or {}
         return Place(
             name=row.get("name") or (row.get("display_name") or "").split(",")[0],
             address=row.get("display_name", ""),
@@ -207,7 +210,29 @@ class OSMClient:
             lon=float(row["lon"]),
             category=f"{cls}/{typ}".strip("/"),
             osm_id=f"{row.get('osm_type', '?')}/{row.get('osm_id', '?')}",
+            city=_locality(address),
         )
+
+
+def _locality(address: dict) -> str:
+    """Extract a human city/locality from Nominatim address details or OSM tags."""
+    value = next(
+        (
+            str(address[key]).strip()
+            for key in ("city", "addr:city", "town", "village", "municipality")
+            if address.get(key)
+        ),
+        "",
+    )
+    # Nominatim conventionally calls the municipality "New York". In speech,
+    # distinguish the city from New York State.
+    if value in ("New York", "City of New York"):
+        return "New York City"
+    if not value and address.get("borough") in {
+        "Manhattan", "Brooklyn", "Queens", "The Bronx", "Staten Island"
+    }:
+        return "New York City"
+    return value
 
 
 def summarize_places(
@@ -220,6 +245,8 @@ def summarize_places(
     lines = []
     for p in places:
         extra = f" [{p.category}]" if p.category else ""
+        if p.city:
+            extra += f" — city: {p.city}"
         loc = f" ({p.lat:.5f},{p.lon:.5f})"
         if origin is not None:
             d = p.distance_m(*origin)
