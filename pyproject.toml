@@ -1,0 +1,40 @@
+[project]
+name = "scout-reachy"
+version = "0.1.0"
+description = "Scout Reachy - a Reachy Mini Lite that reads signs/landmarks with its camera and speaks your location via OpenStreetMap"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # Vision + reasoning brain (image input + tool calling)
+    "anthropic>=0.69",
+    # Spoken output
+    "elevenlabs>=1.50",
+    # OpenStreetMap (Nominatim + Overpass) HTTP client
+    "httpx>=0.27",
+    # Config
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+    # Load .env so the Anthropic SDK sees ANTHROPIC_API_KEY
+    "python-dotenv>=1.0",
+    # Voice stack (same pins as the sibling projects, proven on this machine)
+    "faster-whisper>=1.2",
+    "webrtcvad-wheels>=2.0.14",
+    "openwakeword>=0.6.0",
+    "sounddevice>=0.5",
+    "scipy>=1.11",
+    "soundfile>=0.12",
+    "numpy",
+    "huggingface_hub",
+    # Windows WiFi/GNSS device location (compiled wheel; import is guarded in
+    # location.py so a BitDefender quarantine degrades to the manual fallback).
+    "winrt-Windows.Devices.Geolocation>=2.0; sys_platform == 'win32'",
+    "winrt-Windows.Foundation>=2.0; sys_platform == 'win32'",
+    # reachy-mini is installed separately (it pins zeroconf, which is stubbed on
+    # this machine for BitDefender reasons — see README). Do NOT add it here.
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

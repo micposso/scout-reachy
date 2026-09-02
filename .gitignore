@@ -1,0 +1,10 @@
+.env
+.venv/
+.app_data/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+models/*.onnx
+*.ppm
